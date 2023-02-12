@@ -146,7 +146,7 @@ class Steamint:
       friend_link_id = "/{0}/{1}".format(friend_link_text.group(1), friend_link_text.group(2))
       friend_steamid = friend.get("data-steamid")
 
-      output += "Username: {0} | Steam link: {1} | Steam ID: {2}\n".format(friend_username, friend_link_id, friend_steamid)
+      output += "- Username: {0} | Steam link: {1} | Steam ID: {2}\n".format(friend_username, friend_link_id, friend_steamid)
 
     print(output)
 
@@ -165,16 +165,48 @@ class Steamint:
 
     print(output)
 
+  # Comments
+
+  def get_comments(self, number=None): 
+    comments_url = "https://steamcommunity.com/comment/Profile/render/{}/-1/?start=0&count=500".format(self.profile_data["steamID64"])
+    headers = {'Accept': 'application/json'}
+    page = requests.get(comments_url, headers=headers)
+
+    data = page.json()
+    total_comments = data["total_count"]
+    html_data = BeautifulSoup(data['comments_html'], 'html.parser')
+    comments = html_data.find_all('div', {'class': 'commentthread_comment'})
+    
+    nb_comments = len(comments) if number == None or number > len(comments) else number
+
+    output = "Comments: ({0}/{1}) - {2} total\n".format(nb_comments, len(comments), total_comments)
+    for i in range(nb_comments):
+      comment = comments[i]
+      comment_sender = comment.find('bdi').text
+
+      comment_timestamp = int(comment.find('span', {'class': 'commentthread_comment_timestamp'}).get("data-timestamp"))
+      print(comment_timestamp)
+      comment_time = datetime.fromtimestamp(comment_timestamp).strftime("%d/%m/%Y - %H:%M:%S")
+
+      comment_content = comment.find('div', {'class': 'commentthread_comment_text'}).text
+
+      output += "- Sender: {0} | Time: {1} | Content: {2} \n".format(comment_sender, comment_time, comment_content.strip())
+
+    print(output)
+
 if __name__ == "__main__":
   steamint = Steamint(username)
-  steamint.get_actual_persona()
-  steamint.get_persona_history()
-  steamint.get_real_name()
-  steamint.get_location()
-  steamint.get_level()
-  steamint.get_status()
-  steamint.get_ban_info()
-  steamint.get_games(5)
-  #steamint.get_description()
-  steamint.get_friends(5)
-  steamint.get_groups(3)
+
+  # steamint.get_actual_persona()
+  # steamint.get_persona_history()
+  # steamint.get_real_name()
+  # steamint.get_location()
+  # steamint.get_level()
+  # steamint.get_status()
+  # steamint.get_ban_info()
+  # steamint.get_games(5)
+  # steamint.get_description()
+  # steamint.get_friends(5)
+  # steamint.get_groups(3)
+  # steamint.get_comments(5)
+  steamint.get_wishlist(2)
