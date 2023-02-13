@@ -9,18 +9,33 @@ from datetime import datetime
 import xmltodict
 
 parser = argparse.ArgumentParser(description="Parser")
-parser.add_argument('username', type=str, help="Username used to search for data")
+parser.add_argument('--username', '-u', type=str, help="Username used to search for data")
+parser.add_argument('--steamid', '-s', type=str, help="Steamid used to search for data")
 
 args = parser.parse_args()
+
 username = args.username
+steamid = args.steamid
 
 class Steamint:
-  def __init__(self, username):
+  def __init__(self, username=None, steamid=None):
+    self.url = 'https://steamcommunity.com'
+
     self.username = username
-    self.url = 'https://steamcommunity.com/id/%s' % username
+    self.steamid = steamid
+
+    if username != None:
+      self.path = '/id/{}'.format(self.username)
+    elif steamid != None:
+      self.path = '/profiles/{}'.format(self.steamid)
+    else:
+      print("Plese enter either a username or a steamid")
+      exit()
     
+    self.url += self.path
+
     print("Steamint - Information gathing on steam profiles")
-    print("Searching data for {}".format(self.username))
+    print("Searching data for {}".format(self.username if username != None else self.steamid))
     
     self.mainpage = self.get_mainpage()
     self.profile_data = self.get_xml_mainpage()
@@ -153,8 +168,14 @@ class Steamint:
   # Groups
   
   def get_groups(self, number=None):
-    group_list = self.profile_data["groups"]["group"]
-
+    number_of_groups = int(self.mainpage.find('div', {'class': 'profile_group_links'}).find('span', {'class', 'profile_count_link_total'}).text.strip())
+    if number_of_groups == 0:
+      group_list = []
+    elif number_of_groups == 1:
+      group_list = []
+    else:
+      group_list = self.profile_data["groups"]["group"]
+    
     nb_groups = len(group_list) if number == None or number > len(group_list) else number
 
     output = "Groups: ({0}/{1}):\n".format(nb_groups, len(group_list))
@@ -180,12 +201,12 @@ class Steamint:
     nb_comments = len(comments) if number == None or number > len(comments) else number
 
     output = "Comments: ({0}/{1}) - {2} total\n".format(nb_comments, len(comments), total_comments)
+
     for i in range(nb_comments):
       comment = comments[i]
       comment_sender = comment.find('bdi').text
 
       comment_timestamp = int(comment.find('span', {'class': 'commentthread_comment_timestamp'}).get("data-timestamp"))
-      print(comment_timestamp)
       comment_time = datetime.fromtimestamp(comment_timestamp).strftime("%d/%m/%Y - %H:%M:%S")
 
       comment_content = comment.find('div', {'class': 'commentthread_comment_text'}).text
@@ -194,19 +215,43 @@ class Steamint:
 
     print(output)
 
-if __name__ == "__main__":
-  steamint = Steamint(username)
+  def get_wishlist(self, number=None):
+    wishlist_url = "https://store.steampowered.com/wishlist/{}/wishlistdata".format(self.path)
+    headers = {'Accept': 'application/json'}
+    wishlist_request = requests.get(wishlist_url, headers=headers)
+    wishlist_data = wishlist_request.json()
 
-  # steamint.get_actual_persona()
-  # steamint.get_persona_history()
-  # steamint.get_real_name()
-  # steamint.get_location()
-  # steamint.get_level()
-  # steamint.get_status()
-  # steamint.get_ban_info()
-  # steamint.get_games(5)
-  # steamint.get_description()
-  # steamint.get_friends(5)
-  # steamint.get_groups(3)
-  # steamint.get_comments(5)
-  steamint.get_wishlist(2)
+    wishlist = [wishlist_data[identifier] for identifier in wishlist_data]
+    sorted_wishlist = sorted(wishlist, key=lambda x: int(x["added"]), reverse=True)
+
+    nb_games = len(sorted_wishlist) if number == None or number > len(sorted_wishlist) else number
+
+    output = "Wishlist: ({0}/{1})\n".format(nb_games, len(sorted_wishlist))
+    for i in range(nb_games):
+      game_name = sorted_wishlist[i]["name"]
+      game_addedon_timestamp = int(sorted_wishlist[i]["added"])
+      game_addedon = datetime.fromtimestamp(game_addedon_timestamp).strftime("%d/%m/%Y - %H:%M:%S")
+
+      output += "- Game: {0} | Added the: {1}\n".format(game_name, game_addedon)
+    
+    print(output)
+
+if __name__ == "__main__":
+
+  steamint = Steamint(steamid=steamid)
+
+  steamint.get_actual_persona()
+  steamint.get_persona_history()
+  steamint.get_real_name()
+  steamint.get_location()
+  steamint.get_level()
+  steamint.get_status()
+  steamint.get_privacystate()
+  steamint.get_membership_duration()
+  steamint.get_ban_info()
+  steamint.get_games(5)
+  #steamint.get_description()
+  steamint.get_friends(5)
+  #steamint.get_groups(3)
+  steamint.get_comments(5)
+  steamint.get_wishlist(4)
