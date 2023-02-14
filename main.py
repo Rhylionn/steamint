@@ -166,23 +166,31 @@ class Steamint:
     print(output)
 
   # Groups
-  
-  def get_groups(self, number=None):
-    number_of_groups = int(self.mainpage.find('div', {'class': 'profile_group_links'}).find('span', {'class', 'profile_count_link_total'}).text.strip())
-    if number_of_groups == 0:
-      group_list = []
-    elif number_of_groups == 1:
-      group_list = []
-    else:
-      group_list = self.profile_data["groups"]["group"]
-    
-    nb_groups = len(group_list) if number == None or number > len(group_list) else number
 
-    output = "Groups: ({0}/{1}):\n".format(nb_groups, len(group_list))
-    for i in range(nb_groups):
-      group = group_list[i]
-      is_primary = True if group["@isPrimary"] == "1" else False
-      output += "- Name: {0} | Link: /{1} | {2} Member(s) | Primary: {3}\n".format(group["groupName"], group["groupURL"], group["memberCount"], "Yes" if is_primary else "No")
+  def get_groups(self, max_output=2):
+    groups_url = "{}/groups".format(self.url)
+    page = requests.get(groups_url)
+    soup = BeautifulSoup(page.text, 'html.parser')
+    
+    groups_html = soup.find('div', {'id': 'groups_list'}).find_all('div', {'class': 'group_block'})
+
+    if len(groups_html) == 0:
+      output = "No groups or private."
+    else:
+      max_output = len(groups_html) if max_output > len(groups_html) else max_output
+
+      output = "Groups ({0}/{1}):\n".format(max_output, len(groups_html))
+      for i in range(max_output):
+        group = groups_html[i]
+        group_link_element = group.find('a', {'class': 'linkTitle'})
+        group_name = group_link_element.text
+        group_link = group_link_element.get("href").split("/")[-1]
+
+        group_public = True if group.find('span', {'class': 'pubGroup'}) != None else False
+
+        group_membercount = group.find('a', {'class': 'groupMemberStat'}).text.split()[0]
+
+        output += "- Name: {0} | Link: {1} | Visibility: {2} | {3} Member(s)\n".format(group_name, group_link, "Public" if group_public else "Private", group_membercount)
 
     print(output)
 
@@ -238,20 +246,20 @@ class Steamint:
 
 if __name__ == "__main__":
 
-  steamint = Steamint(steamid=steamid)
+  steamint = Steamint(username=username, steamid=steamid)
 
-  steamint.get_actual_persona()
-  steamint.get_persona_history()
-  steamint.get_real_name()
-  steamint.get_location()
-  steamint.get_level()
-  steamint.get_status()
-  steamint.get_privacystate()
-  steamint.get_membership_duration()
-  steamint.get_ban_info()
-  steamint.get_games(5)
+  # steamint.get_actual_persona()
+  # steamint.get_persona_history()
+  # steamint.get_real_name()
+  # steamint.get_location()
+  # steamint.get_level()
+  # steamint.get_status()
+  # steamint.get_privacystate()
+  # steamint.get_membership_duration()
+  # steamint.get_ban_info()
+  # steamint.get_games(5)
   #steamint.get_description()
-  steamint.get_friends(5)
-  #steamint.get_groups(3)
-  steamint.get_comments(5)
-  steamint.get_wishlist(4)
+  # steamint.get_friends(5)
+  steamint.get_groups(6)
+  # steamint.get_comments(5)
+  # steamint.get_wishlist(4)
