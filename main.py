@@ -42,12 +42,16 @@ class Steamint:
     self.gamespage = self.get_games_page()
     self.friendlist = self.get_friendlist_page()
 
+    self.output_dict = {
+      "profileUrl": self.url,
+    }
+
   # Profile
 
   def get_mainpage(self):
-    page = requests.get(self.url)
-    soup = BeautifulSoup(page.text, 'html.parser')
-    user_content = soup.find('div', {"id": "responsive_page_template_content"}) 
+    request = requests.get(self.url)
+    html = BeautifulSoup(request.text, 'html.parser')
+    user_content = html.find('div', {"id": "responsive_page_template_content"}) 
     return user_content 
 
   def get_xml_mainpage(self):
@@ -57,11 +61,17 @@ class Steamint:
     return profile_data["profile"]
   
   def get_privacystate(self):
-    output = "Privacy state: {}".format(self.profile_data["privacyState"])
+    privacy_state = self.profile_data["privacyState"]
+    output = "Privacy state: {}".format(privacy_state)
+
+    self.output_dict["privacyState"] = privacy_state
     print(output)
 
   def get_actual_persona(self):
-    output = "Actual persona: {}".format(self.profile_data["steamID"])
+    persona = self.profile_data["steamID"]
+    output = "Actual persona: {}".format(persona)
+
+    self.output_dict["persona"] = persona
     print(output)
 
   def get_persona_history(self):
@@ -69,34 +79,61 @@ class Steamint:
     history_request = requests.get(persona_history_url)
     persona_history = history_request.json()
 
+    self.output_dict["personaHistory"] = []
     output = "Persona history: \n"
     for history in persona_history:
-      output += "- {0} changed the: {1} \n".format(history["newname"], history["timechanged"])
+      name = history["newname"]
+      timechanged = history["timechanged"]
+
+      self.output_dict["personaHistory"].append({"name": name, "timechanged": timechanged})
+
+      output += "- {0} changed the: {1} \n".format(name, timechanged)
 
     print(output)
 
   def get_real_name(self):
-    output = "Real name: {}".format(self.profile_data["realname"])
+    real_name = self.profile_data["realname"] or None
+    output = "Real name: {}".format(real_name)
+
+    self.output_dict["realName"] = real_name
     print(output)
 
   def get_location(self):
-    output = "Location: {}".format(self.profile_data["location"])
+    location = self.profile_data["location"] or None
+    output = "Location: {}".format(location)
+
+    self.output_dict["location"] = location
     print(output)
   
   def get_description(self):
-    description = self.mainpage.find('div', {"class": "profile_summary"}).text
-    print("Profile description: {}".format(description))
+    description = self.mainpage.find('div', {"class": "profile_summary"}).text.strip()
+    output = "Profile description: {}".format(description)
+
+    self.output_dict["description"] = description
+    print(output)
 
   def get_level(self):
-    level = self.mainpage.find('span', {'class': 'friendPlayerLevelNum'}).text
-    print("Player level: {}".format(level))
+    level = int(self.mainpage.find('span', {'class': 'friendPlayerLevelNum'}).text.strip())
+    output = "Player level: {}".format(level)
+
+    self.output_dict["level"] = level
+
+    print(output)
 
   def get_status(self):
-    output = "Current status: {}".format(self.profile_data["stateMessage"])
+    current_status = self.profile_data["stateMessage"]
+    output = "Current status: {}".format(current_status)
+
+    self.output_dict["currentStatus"] = current_status
+
     print(output)
 
   def get_membership_duration(self):
-    output = "Member since: {}".format(self.profile_data["memberSince"])
+    member_since = self.profile_data["memberSince"]
+    output = "Member since: {}".format(member_since)
+
+    self.output_dict["memberDuration"] = member_since
+
     print(output)
 
   def get_ban_info(self):
@@ -105,18 +142,24 @@ class Steamint:
     is_limited = False if self.profile_data["isLimitedAccount"] == '0' else True
     output = "VAC Ban: {0} | Trade Ban: {1} | Limited account: {2}".format(is_vacban, is_tradeban, is_limited)
 
+    self.output_dict["banInfo"] = {
+      "vacBanned": is_vacban,
+      "tradeBanned": is_tradeban,
+      "limited": is_limited
+    }
+
     print(output)
 
   # Games
 
   def get_games_page(self):
-    games_url = self.url + "/games/?tab=all"
-    page = requests.get(games_url)
-    soup = BeautifulSoup(page.text, 'html.parser')
-    content = soup.find('div', {'id': 'responsive_page_template_content'})
+    games_url = "{}/games/?tab=all".format(self.url)
+    request = requests.get(games_url)
+    html = BeautifulSoup(request.text, 'html.parser')
+    content = html.find('div', {'id': 'responsive_page_template_content'})
     return content
 
-  def get_games(self, number=None):
+  def get_games(self, max_output=5):
     scripts = self.gamespage.find_all("script")
 
     games_script = None
@@ -127,13 +170,24 @@ class Steamint:
     games_text = re.search(r'var rgGames = (.+?);', games_script).group(1)
     games = json.loads(games_text)
 
-    nb_script = len(games) if number == None or number > len(games) else number
+    max_output = len(games) if max_output > len(games) else max_output
 
-    output = "Games ({0}/{1}): \n".format(nb_script, len(games))
-    for i in range(nb_script):
+    self.output_dict["ownedGames"] = []
+
+    output = "Games ({0}/{1}): \n".format(max_output, len(games))
+    for i in range(max_output):
       game = games[i]
-      last_played = datetime.fromtimestamp(game["last_played"]).date().strftime("%d/%m/%Y")
-      output += "- {0} with {1} hours on record. Last time played the: {2}\n".format(game["name"], game["hours_forever"], last_played)
+      game_name = game["name"]
+      game_hourplayed = int(game["hours_forever"].replace(",", ""))
+      last_played = datetime.fromtimestamp(game["last_played"]).strftime("%d/%m/%Y - %H:%M:%S")
+
+      self.output_dict["ownedGames"].append({
+        "name": game_name,
+        "totalPlayed": game_hourplayed,
+        "lastPlayed": last_played
+      })
+
+      output += "- {0} with {1} hours on record. Last time played the: {2}\n".format(game_name, game_hourplayed, last_played)
 
     print(output)
 
@@ -141,25 +195,33 @@ class Steamint:
 
   def get_friendlist_page(self):
     friends_url = "{}/friends".format(self.url)
-    page = requests.get(friends_url)
-    soup = BeautifulSoup(page.text, 'html.parser')
-    friend_list = soup.find('div', {'class', 'friends_content'})
+    request = requests.get(friends_url)
+    html = BeautifulSoup(request.text, 'html.parser')
+    friend_list = html.find('div', {'class', 'friends_content'})
     return friend_list
   
-  def get_friends(self, number=None):
+  def get_friends(self, max_output=5):
     friend_list = self.friendlist.find_all('div', {'class': 'persona'})
 
-    nb_friends = len(friend_list) if number == None or number > len(friend_list) else number
+    max_output = len(friend_list) if max_output > len(friend_list) else max_output
 
-    output = "Friend list {0}/{1}:\n".format(nb_friends, len(friend_list))
-    for i in range(nb_friends):
+    self.output_dict["friendsList"] = []
+
+    output = "Friend list ({0}/{1}):\n".format(max_output, len(friend_list))
+    for i in range(max_output):
       friend = friend_list[i]
-      friend_username = friend.find('div', {'class': 'friend_block_content'}).find_next(string=True)
+      friend_username = friend.find('div', {'class': 'friend_block_content'}).find_next(string=True).strip()
 
       friend_link = friend.find('a', {'class': 'selectable_overlay'}).get("href")
       friend_link_text = re.search(r'https://steamcommunity.com/(id|profiles)/(\w+)', friend_link)
       friend_link_id = "/{0}/{1}".format(friend_link_text.group(1), friend_link_text.group(2))
       friend_steamid = friend.get("data-steamid")
+
+      self.output_dict["friendsList"].append({
+        "username": friend_username,
+        "link": friend_link_id,
+        "steamId": friend_steamid
+      })
 
       output += "- Username: {0} | Steam link: {1} | Steam ID: {2}\n".format(friend_username, friend_link_id, friend_steamid)
 
@@ -174,6 +236,8 @@ class Steamint:
     
     groups_html = soup.find('div', {'id': 'groups_list'}).find_all('div', {'class': 'group_block'})
 
+    self.output_dict["groupList"] = []
+
     if len(groups_html) == 0:
       output = "No groups or private."
     else:
@@ -183,47 +247,62 @@ class Steamint:
       for i in range(max_output):
         group = groups_html[i]
         group_link_element = group.find('a', {'class': 'linkTitle'})
-        group_name = group_link_element.text
+        group_name = group_link_element.text.strip()
         group_link = group_link_element.get("href").split("/")[-1]
 
-        group_public = True if group.find('span', {'class': 'pubGroup'}) != None else False
+        group_visibility = "Public" if group.find('span', {'class': 'pubGroup'}) != None else "Private"
 
-        group_membercount = group.find('a', {'class': 'groupMemberStat'}).text.split()[0]
+        group_membercount_element = group.find('a', {'class': 'groupMemberStat'})
+        group_membercount = int(group_membercount_element.text.split()[0].strip().replace(",", ""))
 
-        output += "- Name: {0} | Link: {1} | Visibility: {2} | {3} Member(s)\n".format(group_name, group_link, "Public" if group_public else "Private", group_membercount)
+        self.output_dict["groupList"].append({
+          "name": group_name,
+          "link": group_link,
+          "visibility": group_visibility,
+          "memberCount": group_membercount
+        })
+
+        output += "- Name: {0} | Link: {1} | Visibility: {2} | {3} Member(s)\n".format(group_name, group_link, group_visibility, group_membercount)
 
     print(output)
 
   # Comments
 
-  def get_comments(self, number=None): 
+  def get_comments(self, max_output=5): 
     comments_url = "https://steamcommunity.com/comment/Profile/render/{}/-1/?start=0&count=500".format(self.profile_data["steamID64"])
     headers = {'Accept': 'application/json'}
-    page = requests.get(comments_url, headers=headers)
+    request = requests.get(comments_url, headers=headers)
 
-    data = page.json()
+    data = request.json()
     total_comments = data["total_count"]
     html_data = BeautifulSoup(data['comments_html'], 'html.parser')
     comments = html_data.find_all('div', {'class': 'commentthread_comment'})
     
-    nb_comments = len(comments) if number == None or number > len(comments) else number
+    max_output = len(comments) if max_output > len(comments) else max_output
 
-    output = "Comments: ({0}/{1}) - {2} total\n".format(nb_comments, len(comments), total_comments)
+    self.output_dict["comments"] = []
 
-    for i in range(nb_comments):
+    output = "Comments: ({0}/{1}) - {2} total\n".format(max_output, len(comments), total_comments)
+    for i in range(max_output):
       comment = comments[i]
-      comment_sender = comment.find('bdi').text
+      comment_sender = comment.find('bdi').text.strip()
 
       comment_timestamp = int(comment.find('span', {'class': 'commentthread_comment_timestamp'}).get("data-timestamp"))
       comment_time = datetime.fromtimestamp(comment_timestamp).strftime("%d/%m/%Y - %H:%M:%S")
 
-      comment_content = comment.find('div', {'class': 'commentthread_comment_text'}).text
+      comment_content = comment.find('div', {'class': 'commentthread_comment_text'}).text.strip()
+
+      self.output_dict["comments"].append({
+        "sender": comment_sender,
+        "date": comment_time,
+        "content": comment_content
+      })
 
       output += "- Sender: {0} | Time: {1} | Content: {2} \n".format(comment_sender, comment_time, comment_content.strip())
 
     print(output)
 
-  def get_wishlist(self, number=None):
+  def get_wishlist(self, max_output=5):
     wishlist_url = "https://store.steampowered.com/wishlist/{}/wishlistdata".format(self.path)
     headers = {'Accept': 'application/json'}
     wishlist_request = requests.get(wishlist_url, headers=headers)
@@ -232,34 +311,50 @@ class Steamint:
     wishlist = [wishlist_data[identifier] for identifier in wishlist_data]
     sorted_wishlist = sorted(wishlist, key=lambda x: int(x["added"]), reverse=True)
 
-    nb_games = len(sorted_wishlist) if number == None or number > len(sorted_wishlist) else number
+    max_output = len(sorted_wishlist) if max_output > len(sorted_wishlist) else max_output
 
-    output = "Wishlist: ({0}/{1})\n".format(nb_games, len(sorted_wishlist))
-    for i in range(nb_games):
-      game_name = sorted_wishlist[i]["name"]
+    self.output_dict["wishlist"] = []
+
+    output = "Wishlist: ({0}/{1})\n".format(max_output, len(sorted_wishlist))
+    for i in range(max_output):
+      game_name = sorted_wishlist[i]["name"].strip()
       game_addedon_timestamp = int(sorted_wishlist[i]["added"])
       game_addedon = datetime.fromtimestamp(game_addedon_timestamp).strftime("%d/%m/%Y - %H:%M:%S")
+
+      self.output_dict["wishlist"].append({
+        "name": game_name,
+        "addedOn": game_addedon
+      })
 
       output += "- Game: {0} | Added the: {1}\n".format(game_name, game_addedon)
     
     print(output)
 
-if __name__ == "__main__":
+  # Output json
 
+  def json_output(self):
+    json_data = json.dumps(self.output_dict)
+    output_name = "steamint_{}.json".format(self.profile_data["steamID64"])
+    with open(output_name, "w") as outfile:
+      outfile.write(json_data)
+
+if __name__ == "__main__":
   steamint = Steamint(username=username, steamid=steamid)
 
-  # steamint.get_actual_persona()
-  # steamint.get_persona_history()
-  # steamint.get_real_name()
-  # steamint.get_location()
-  # steamint.get_level()
-  # steamint.get_status()
-  # steamint.get_privacystate()
-  # steamint.get_membership_duration()
-  # steamint.get_ban_info()
-  # steamint.get_games(5)
-  #steamint.get_description()
-  # steamint.get_friends(5)
+  steamint.get_actual_persona()
+  steamint.get_persona_history()
+  steamint.get_real_name()
+  steamint.get_location()
+  steamint.get_level()
+  steamint.get_status()
+  steamint.get_privacystate()
+  steamint.get_membership_duration()
+  steamint.get_ban_info()
+  steamint.get_games(5)
+  steamint.get_description()
+  steamint.get_friends(5)
   steamint.get_groups(6)
-  # steamint.get_comments(5)
-  # steamint.get_wishlist(4)
+  steamint.get_comments(5)
+  steamint.get_wishlist(4)
+
+  steamint.json_output()
