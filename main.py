@@ -2,6 +2,20 @@
 
 import argparse
 from Steamint import Steamint
+from Colors import Colors
+
+
+c_banner = Colors.BLUE + Colors.BOLD + """
+      :::::::: ::::::::::: ::::::::::     :::       :::   :::   ::::::::::: ::::    ::: ::::::::::: 
+    :+:    :+:    :+:     :+:          :+: :+:    :+:+: :+:+:      :+:     :+:+:   :+:     :+:      
+   +:+           +:+     +:+         +:+   +:+  +:+ +:+:+ +:+     +:+     :+:+:+  +:+     +:+       
+  +#++:++#++    +#+     +#++:++#   +#++:++#++: +#+  +:+  +#+     +#+     +#+ +:+ +#+     +#+        
+        +#+    +#+     +#+        +#+     +#+ +#+       +#+     +#+     +#+  +#+#+#     +#+         
+#+#    #+#    #+#     #+#        #+#     #+# #+#       #+#     #+#     #+#   #+#+#     #+#          
+########     ###     ########## ###     ### ###       ### ########### ###    ####     ###           
+Steamint - Information gathering on steam profiles v1.0.0
+Made by rhylionn - https://github.com/Rhylionn/steamint
+""" + Colors.END
 
 parser = argparse.ArgumentParser()
 parser.add_argument('user', type=str, help="Username used to search for data")
@@ -19,12 +33,13 @@ args = parser.parse_args()
 
 
 if __name__ == "__main__":
+  print(c_banner)
+
   user = args.user
   output = args.output
 
-  print(args.max_games)
-
   steamint = Steamint(user=args.user, is_steamid=args.steamid)
+
 
   steamint.get_actual_persona()
   steamint.get_persona_history()

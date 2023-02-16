@@ -4,6 +4,7 @@ import re
 import json
 from datetime import datetime
 import xmltodict
+from Colors import Colors
 
 class Steamint:
   def __init__(self, user, is_steamid=False):
@@ -19,19 +20,21 @@ class Steamint:
     
     self.url += self.path
 
-    print("Steamint - Information gathing on steam profiles")
-    print("Searching data for: {}".format(self.user))
+    print("Searching data for: {}".format(Colors.ORANGE + self.user + Colors.EOL))
     
     if self.user.isnumeric() and len(self.user) == 17 and not is_steamid:
-      print("The user you entered seems to be a SteamID. If so, please use the -s flag.")
+      print(Colors.RED + Colors.BOLD + "The user you entered seems to be a SteamID. If so, please use the -s flag." + Colors.EOL)
+    elif not self.user.isnumeric() and len(self.user) != 17 and is_steamid:
+      print(Colors.RED + Colors.BOLD + "The user you entered does not seems to be a SteamID. Try without -s flag." + Colors.EOL)
 
-    self.profile_data = self.get_xml_mainpage()
+    self.xml_mainpage = self.get_xml_mainpage()
     if self.exists():
+      self.profile_data = self.xml_mainpage["profile"]
       self.mainpage = self.get_mainpage()
       self.gamespage = self.get_games_page()
       self.friendlist = self.get_friendlist_page()
     else:
-      print("Profile does not exists")
+      print(Colors.RED + Colors.BOLD + "Profile does not exists" + Colors.EOL)
       exit()
 
     self.output_dict = {
@@ -47,8 +50,8 @@ class Steamint:
     return user_content 
 
   def exists(self):
-    self.profile_data = self.get_xml_mainpage()
-    if "response" in self.profile_data and "error" in self.profile_data["response"]:
+    self.xml_mainpage = self.get_xml_mainpage()
+    if "response" in self.xml_mainpage and "error" in self.xml_mainpage["response"]:
       return False
     else:
       return True
@@ -62,14 +65,14 @@ class Steamint:
   
   def get_privacystate(self):
     privacy_state = self.profile_data["privacyState"]
-    output = "Privacy state: {}".format(privacy_state)
+    output = "Privacy state: {}".format(Colors.ORANGE + privacy_state + Colors.EOL)
 
     self.output_dict["privacyState"] = privacy_state
     print(output)
 
   def get_actual_persona(self):
     persona = self.profile_data["steamID"]
-    output = "Actual persona: {}".format(persona)
+    output = "Actual persona: {}".format(Colors.ORANGE + persona + Colors.EOL)
 
     self.output_dict["persona"] = persona
     print(output)
@@ -87,34 +90,34 @@ class Steamint:
 
       self.output_dict["personaHistory"].append({"name": name, "timechanged": timechanged})
 
-      output += "- {0} changed the: {1} \n".format(name, timechanged)
+      output += "- {0} changed the: {1} \n".format(Colors.ORANGE + name + Colors.END, Colors.ORANGE + timechanged + Colors.END)
 
     print(output)
 
   def get_real_name(self):
     real_name = self.profile_data["realname"] or None
-    output = "Real name: {}".format(real_name)
+    output = "Real name: {}".format(Colors.ORANGE + str(real_name) + Colors.EOL)
 
     self.output_dict["realName"] = real_name
     print(output)
 
   def get_location(self):
     location = self.profile_data["location"] or None
-    output = "Location: {}".format(location)
+    output = "Location: {}".format(Colors.ORANGE + location + Colors.EOL)
 
     self.output_dict["location"] = location
     print(output)
   
   def get_description(self):
     description = self.mainpage.find('div', {"class": "profile_summary"}).text.strip()
-    output = "Profile description: {}".format(description)
+    output = "Profile description: {}\n".format(description)
 
     self.output_dict["description"] = description
     print(output)
 
   def get_level(self):
     level = int(self.mainpage.find('span', {'class': 'friendPlayerLevelNum'}).text.strip())
-    output = "Player level: {}".format(level)
+    output = "Player level: {}".format(Colors.ORANGE + str(level) + Colors.EOL)
 
     self.output_dict["level"] = level
 
@@ -122,7 +125,7 @@ class Steamint:
 
   def get_status(self):
     current_status = self.profile_data["stateMessage"]
-    output = "Current status: {}".format(current_status)
+    output = "Current status: {}".format(Colors.ORANGE + current_status + Colors.EOL)
 
     self.output_dict["currentStatus"] = current_status
 
@@ -130,7 +133,7 @@ class Steamint:
 
   def get_membership_duration(self):
     member_since = self.profile_data["memberSince"]
-    output = "Member since: {}".format(member_since)
+    output = "Member since: {}".format(Colors.ORANGE + member_since + Colors.EOL)
 
     self.output_dict["memberDuration"] = member_since
 
@@ -140,7 +143,8 @@ class Steamint:
     is_vacban = False if self.profile_data["vacBanned"] == '0' else True
     is_tradeban = False if self.profile_data["tradeBanState"] == 'None' else True
     is_limited = False if self.profile_data["isLimitedAccount"] == '0' else True
-    output = "VAC Ban: {0} | Trade Ban: {1} | Limited account: {2}".format(is_vacban, is_tradeban, is_limited)
+    output = ""
+    output = "Ban informations:\n \t- VAC Ban: {0}\n\t- Trade Ban: {1}\n\t- Limited account: {2}\n".format(Colors.ORANGE + str(is_vacban) + Colors.END, Colors.ORANGE + str(is_tradeban) + Colors.END, Colors.ORANGE + str(is_limited) + Colors.END)
 
     self.output_dict["banInfo"] = {
       "vacBanned": is_vacban,
@@ -187,7 +191,7 @@ class Steamint:
         "lastPlayed": last_played
       })
 
-      output += "- {0} with {1} hours on record. Last time played the: {2}\n".format(game_name, game_hourplayed, last_played)
+      output += "\t- {0} with {1} hours on record. Last time played: {2}\n".format(Colors.ORANGE + game_name + Colors.END, Colors.ORANGE + str(game_hourplayed) + Colors.END, Colors.ORANGE + last_played + Colors.END)
 
     print(output)
 
@@ -207,23 +211,26 @@ class Steamint:
 
     self.output_dict["friendsList"] = []
 
-    output = "Friend list ({0}/{1}):\n".format(max_output, len(friend_list))
-    for i in range(max_output):
-      friend = friend_list[i]
-      friend_username = friend.find('div', {'class': 'friend_block_content'}).find_next(string=True).strip()
+    if len(friend_list) == 0:
+      output = Colors.ORANGE + "No friends or private" + Colors.EOL
+    else:
+      output = "Friend list ({0}/{1}):\n".format(max_output, len(friend_list))
+      for i in range(max_output):
+        friend = friend_list[i]
+        friend_username = friend.find('div', {'class': 'friend_block_content'}).find_next(string=True).strip()
 
-      friend_link = friend.find('a', {'class': 'selectable_overlay'}).get("href")
-      friend_link_text = re.search(r'https://steamcommunity.com/(id|profiles)/(\w+)', friend_link)
-      friend_link_id = "/{0}/{1}".format(friend_link_text.group(1), friend_link_text.group(2))
-      friend_steamid = friend.get("data-steamid")
+        friend_link = friend.find('a', {'class': 'selectable_overlay'}).get("href")
+        friend_link_text = re.search(r'https://steamcommunity.com/(id|profiles)/(\w+)', friend_link)
+        friend_link_id = "/{0}/{1}".format(friend_link_text.group(1), friend_link_text.group(2))
+        friend_steamid = friend.get("data-steamid")
 
-      self.output_dict["friendsList"].append({
-        "username": friend_username,
-        "link": friend_link_id,
-        "steamId": friend_steamid
-      })
+        self.output_dict["friendsList"].append({
+          "username": friend_username,
+          "link": friend_link_id,
+          "steamId": friend_steamid
+        })
 
-      output += "- Username: {0} | Steam link: {1} | Steam ID: {2}\n".format(friend_username, friend_link_id, friend_steamid)
+        output += "\t- Username: {0} | Profile link: {1} | Steam ID: {2}\n".format(Colors.ORANGE + friend_username + Colors.END, Colors.ORANGE + friend_link_id + Colors.END, Colors.ORANGE + friend_steamid + Colors.END)
 
     print(output)
 
@@ -239,7 +246,7 @@ class Steamint:
     self.output_dict["groupList"] = []
 
     if len(groups_html) == 0:
-      output = "No groups or private."
+      output = Colors.ORANGE + "No groups or private." + Colors.EOL
     else:
       max_output = len(groups_html) if max_output > len(groups_html) else max_output
 
@@ -262,7 +269,7 @@ class Steamint:
           "memberCount": group_membercount
         })
 
-        output += "- Name: {0} | Link: {1} | Visibility: {2} | {3} Member(s)\n".format(group_name, group_link, group_visibility, group_membercount)
+        output += "\t- Name: {0} | Link: {1} | Visibility: {2} | {3} Member(s)\n".format(Colors.ORANGE + group_name + Colors.END, Colors.ORANGE + group_link + Colors.END, Colors.ORANGE + group_visibility + Colors.END, Colors.ORANGE + str(group_membercount) + Colors.END)
 
     print(output)
 
@@ -282,23 +289,26 @@ class Steamint:
 
     self.output_dict["comments"] = []
 
-    output = "Comments: ({0}/{1}) - {2} total\n".format(max_output, len(comments), total_comments)
-    for i in range(max_output):
-      comment = comments[i]
-      comment_sender = comment.find('bdi').text.strip()
+    if total_comments == 0:
+      output = Colors.ORANGE + "No comments or private." + Colors.EOL
+    else:
+      output = "Comments: ({0}/{1}) - {2} total\n".format(max_output, len(comments), total_comments)
+      for i in range(max_output):
+        comment = comments[i]
+        comment_sender = comment.find('bdi').text.strip()
 
-      comment_timestamp = int(comment.find('span', {'class': 'commentthread_comment_timestamp'}).get("data-timestamp"))
-      comment_time = datetime.fromtimestamp(comment_timestamp).strftime("%d/%m/%Y - %H:%M:%S")
+        comment_timestamp = int(comment.find('span', {'class': 'commentthread_comment_timestamp'}).get("data-timestamp"))
+        comment_time = datetime.fromtimestamp(comment_timestamp).strftime("%d/%m/%Y - %H:%M:%S")
 
-      comment_content = comment.find('div', {'class': 'commentthread_comment_text'}).text.strip()
+        comment_content = comment.find('div', {'class': 'commentthread_comment_text'}).text.strip()
 
-      self.output_dict["comments"].append({
-        "sender": comment_sender,
-        "date": comment_time,
-        "content": comment_content
-      })
+        self.output_dict["comments"].append({
+          "sender": comment_sender,
+          "date": comment_time,
+          "content": comment_content
+        })
 
-      output += "- Sender: {0} | Time: {1} | Content: {2} \n".format(comment_sender, comment_time, comment_content.strip())
+        output += "\t- Sender: {0} | Time: {1} | Content: {2} \n".format(Colors.ORANGE + comment_sender + Colors.END, Colors.ORANGE + comment_time + Colors.END, Colors.ORANGE + comment_content.strip() + Colors.END)
 
     print(output)
 
@@ -326,7 +336,7 @@ class Steamint:
         "addedOn": game_addedon
       })
 
-      output += "- Game: {0} | Added the: {1}\n".format(game_name, game_addedon)
+      output += "\t- Game: {0} | Added the: {1}\n".format(Colors.ORANGE + game_name + Colors.END, Colors.ORANGE + game_addedon + Colors.END)
     
     print(output)
 
@@ -337,3 +347,4 @@ class Steamint:
     output_name = "steamint_{}.json".format(self.profile_data["steamID64"])
     with open(output_name, "w") as outfile:
       outfile.write(json_data)
+      print(Colors.ORANGE + "File saved as: " + output_name + Colors.EOL)
