@@ -6,29 +6,33 @@ from datetime import datetime
 import xmltodict
 
 class Steamint:
-  def __init__(self, username=None, steamid=None):
+  def __init__(self, user, is_steamid=False):
     self.url = 'https://steamcommunity.com'
 
-    self.username = username
-    self.steamid = steamid
+    self.user = user
+    self.is_steamid = is_steamid
 
-    if username != None:
-      self.path = '/id/{}'.format(self.username)
-    elif steamid != None:
-      self.path = '/profiles/{}'.format(self.steamid)
+    if is_steamid:
+      self.path = '/profiles/{}'.format(self.user)
     else:
-      print("Plese enter either a username or a steamid")
-      exit()
+      self.path = '/id/{}'.format(self.user)
     
     self.url += self.path
 
     print("Steamint - Information gathing on steam profiles")
-    print("Searching data for {}".format(self.username if username != None else self.steamid))
+    print("Searching data for: {}".format(self.user))
     
-    self.mainpage = self.get_mainpage()
+    if self.user.isnumeric() and len(self.user) == 17 and not is_steamid:
+      print("The user you entered seems to be a SteamID. If so, please use the -s flag.")
+
     self.profile_data = self.get_xml_mainpage()
-    self.gamespage = self.get_games_page()
-    self.friendlist = self.get_friendlist_page()
+    if self.exists():
+      self.mainpage = self.get_mainpage()
+      self.gamespage = self.get_games_page()
+      self.friendlist = self.get_friendlist_page()
+    else:
+      print("Profile does not exists")
+      exit()
 
     self.output_dict = {
       "profileUrl": self.url,
@@ -42,11 +46,19 @@ class Steamint:
     user_content = html.find('div', {"id": "responsive_page_template_content"}) 
     return user_content 
 
+  def exists(self):
+    self.profile_data = self.get_xml_mainpage()
+    if "response" in self.profile_data and "error" in self.profile_data["response"]:
+      return False
+    else:
+      return True
+
   def get_xml_mainpage(self):
     xml_page_url = "{}/?xml=1".format(self.url)
     xml_page = requests.get(xml_page_url)
     profile_data = xmltodict.parse(xml_page.text)
-    return profile_data["profile"]
+
+    return profile_data
   
   def get_privacystate(self):
     privacy_state = self.profile_data["privacyState"]
