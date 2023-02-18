@@ -5,37 +5,36 @@ import json
 from datetime import datetime
 import xmltodict
 from Colors import Colors
+import os
 
 class Steamint:
   def __init__(self, user, is_steamid=False):
     self.url = 'https://steamcommunity.com'
 
     self.user = user
-    self.is_steamid = is_steamid
 
-    if is_steamid:
-      self.path = '/profiles/{}'.format(self.user)
-    else:
-      self.path = '/id/{}'.format(self.user)
+    self.path = '/profiles/{}'.format(self.user) if is_steamid else '/id/{}'.format(self.user)
     
     self.url += self.path
 
     print("Searching data for: {}".format(Colors.ORANGE + self.user + Colors.EOL))
-    
-    if self.user.isnumeric() and len(self.user) == 17 and not is_steamid:
-      print(Colors.RED + Colors.BOLD + "The user you entered seems to be a SteamID. If so, please use the -s flag." + Colors.EOL)
-    elif not self.user.isnumeric() and len(self.user) != 17 and is_steamid:
-      print(Colors.RED + Colors.BOLD + "The user you entered does not seems to be a SteamID. Try without -s flag." + Colors.EOL)
 
-    self.xml_mainpage = self.get_xml_mainpage()
     if self.exists():
-      self.profile_data = self.xml_mainpage["profile"]
+      self.profile_data = self.get_xml_mainpage()["profile"]
       self.mainpage = self.get_mainpage()
       self.gamespage = self.get_games_page()
       self.friendlist = self.get_friendlist_page()
     else:
       print(Colors.RED + Colors.BOLD + "Profile does not exists" + Colors.EOL)
+
+      if self.user.isnumeric() and len(self.user) == 17 and not is_steamid:
+        print(Colors.RED + Colors.BOLD + "The user you entered seems to be a SteamID. If so, please use the -s flag." + Colors.EOL)
+      elif not self.user.isnumeric() and len(self.user) != 17 and is_steamid:
+        print(Colors.RED + Colors.BOLD + "The user you entered does not seems to be a SteamID. Try without -s flag." + Colors.EOL)
+
       exit()
+
+    self.output_directory = self.make_output_dir()
 
     self.output_dict = {
       "profileUrl": self.url,
@@ -50,8 +49,8 @@ class Steamint:
     return user_content 
 
   def exists(self):
-    self.xml_mainpage = self.get_xml_mainpage()
-    if "response" in self.xml_mainpage and "error" in self.xml_mainpage["response"]:
+    xml_mainpage = self.get_xml_mainpage()
+    if "response" in xml_mainpage and "error" in xml_mainpage["response"]:
       return False
     else:
       return True
@@ -154,6 +153,18 @@ class Steamint:
 
     print(output)
 
+  def get_profile_picture(self):
+    img_link = self.mainpage.find('div', {'class': 'playerAvatar'}).find_all('img')[1].get("src")
+    res = requests.get(img_link)
+
+    output_path = self.output_directory + "/profile_picture.jpg"
+
+    if res.status_code == 200:
+      with open(output_path, "wb") as file:
+        file.write(res.content)
+
+    print(Colors.ORANGE + "Profile picture saved..." + Colors.EOL)
+
   # Games
 
   def get_games_page(self):
@@ -231,7 +242,7 @@ class Steamint:
         })
 
         output += "\t- Username: {0} | Profile link: {1} | Steam ID: {2}\n".format(Colors.ORANGE + friend_username + Colors.END, Colors.ORANGE + friend_link_id + Colors.END, Colors.ORANGE + friend_steamid + Colors.END)
-
+  
     print(output)
 
   # Groups
@@ -344,7 +355,16 @@ class Steamint:
 
   def json_output(self):
     json_data = json.dumps(self.output_dict)
-    output_name = "steamint_{}.json".format(self.profile_data["steamID64"])
-    with open(output_name, "w") as outfile:
+    output_path = self.output_directory + "/profile_data.json"
+
+    with open(output_path, "w") as outfile:
       outfile.write(json_data)
-      print(Colors.ORANGE + "File saved as: " + output_name + Colors.EOL)
+
+      print(Colors.ORANGE + "File saved in: " + output_path + Colors.EOL)
+
+  def make_output_dir(self):
+    output_name = "steamint_" + self.profile_data["steamID64"]
+    if not os.path.exists(output_name):
+      os.makedirs(output_name, exist_ok=True)
+      
+    return output_name

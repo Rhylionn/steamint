@@ -45,6 +45,7 @@ if __name__ == "__main__":
   steamint.get_persona_history()
   steamint.get_real_name()
   steamint.get_location()
+  steamint.get_profile_picture()
   steamint.get_level()
   steamint.get_status()
   steamint.get_privacystate()
