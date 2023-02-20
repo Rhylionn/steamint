@@ -4,7 +4,7 @@ import re
 import json
 from datetime import datetime
 import xmltodict
-from Colors import Colors
+from src.Colors import Colors
 import os
 
 class Steamint:

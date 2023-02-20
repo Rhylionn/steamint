@@ -60,7 +60,3 @@ python main.py -s <steamID>
 | -mC / --max-comments | Set number of comments to be displayed              |
 | -mW / --max-wishlist | Set number of games in the wishlist to be displayed |
 | -mF / --max-friends  | Set number of friends to be displayed               |
-
-```
-
-```

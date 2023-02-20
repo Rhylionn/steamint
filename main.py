@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
-from Steamint import Steamint
-from Colors import Colors
+from src.Steamint import Steamint
+from src.Colors import Colors
 
 
 c_banner = Colors.BLUE + Colors.BOLD + """
@@ -40,7 +40,6 @@ if __name__ == "__main__":
 
   steamint = Steamint(user=args.user, is_steamid=args.steamid)
 
-
   steamint.get_actual_persona()
   steamint.get_persona_history()
   steamint.get_real_name()
@@ -51,9 +50,7 @@ if __name__ == "__main__":
   steamint.get_privacystate()
   steamint.get_membership_duration()
   steamint.get_ban_info()
-
   steamint.get_games(args.max_games or 5)
-
   steamint.get_description()
   steamint.get_friends(args.max_friends or 5)
   steamint.get_groups(args.max_groups or 3)
