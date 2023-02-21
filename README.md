@@ -14,12 +14,13 @@ This tool allows you to get a lot of information about a steam profile as long a
 - Description
 - Player level
 - Privacy state
+- Profile picture
 - Account creation date
 - Ban informations
 - Owned games with playtime and last time played
 - Groups with links, visibility and member count
 - Comments with sender and add time
-- Whitelist with add time
+- Wishlist with add time
 
 ## Installation
 
@@ -37,13 +38,13 @@ pip install -r requirements.txt
 
 ## Basic usage
 
-To search for a user with username (used in steam url)
+To search for a user with username (e.g: https://steamcommunity.com/id/username)
 
 ```
 python main.py <username>
 ```
 
-To search for a user with a steamid:
+To search for a user with a steamid (e.g: https://steamcommunity.com/profiles/steamID):
 
 ```
 python main.py -s <steamID>
